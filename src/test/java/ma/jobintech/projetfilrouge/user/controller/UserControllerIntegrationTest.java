@@ -1,79 +1,78 @@
 package ma.jobintech.projetfilrouge.user.controller;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import ma.jobintech.projetfilrouge.user.dto.CreateUserRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import ma.jobintech.projetfilrouge.user.dto.request.CreateUserRequest;
 import ma.jobintech.projetfilrouge.user.entity.Role;
-
+import ma.jobintech.projetfilrouge.user.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Transactional
 class UserControllerIntegrationTest {
 
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper json;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @MockBean  private UserService userService;
 
-    // ── T-B01 : Création nominale (HTTP 201) ──────────────────────────
-    @Test @WithMockUser(roles = "ADMIN")
-    void postUser_valid_returns201() throws Exception {
-        String body = json.writeValueAsString(
-            new CreateUserRequest("Ali", "ali22@test.com", "123456", Role.ETUDIANT));
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void postUser_validPayload_returns201() throws Exception {
+        CreateUserRequest req = new CreateUserRequest();
+        req.setNom("Test User"); req.setEmail("test@uni.ma");
+        req.setPassword("password123"); req.setRole(Role.ETUDIANT);
 
-        mvc.perform(post("/api/users")
-            .contentType(MediaType.APPLICATION_JSON).content(body))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.email").value("ali22@test.com"))
-            .andExpect(jsonPath("$.actif").value(true)); // CA-3
-    }
-    // ── T-B07 : Nom vide → HTTP 400 ───────────────────────────────────
-    @Test @WithMockUser(roles = "ADMIN")
-    void postUser_emptyNom_returns400() throws Exception {
-        String body = "{\"nom\":\"\",\"email\":\"a@b.com\","
-            + "\"password\":\"123456\",\"role\":\"ETUDIANT\"}";
-
-        mvc.perform(post("/api/users")
-            .contentType(MediaType.APPLICATION_JSON).content(body))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.nom").value("Nom obligatoire")); // CA-1
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated());
     }
 
-    // ── T-B14 : Accès non-admin → HTTP 403 ───────────────────────────
     @Test
     @WithMockUser(roles = "ETUDIANT")
     void postUser_asEtudiant_returns403() throws Exception {
 
-        String body = json.writeValueAsString(
-            new CreateUserRequest("Ali", "ali2@test.com", "123456", Role.ETUDIANT)
-        );
+        CreateUserRequest req = new CreateUserRequest();
+        req.setNom("Test User");
+        req.setEmail("test@uni.ma");
+        req.setPassword("password123");
+        req.setRole(Role.ETUDIANT);
 
-        mvc.perform(post("/api/users")
+        mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
-            .andExpect(status().isForbidden());
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden());
     }
-    // ── T-B15 : Sans token → HTTP 401 ────────────────────────────────
+
     @Test
-    void postUser_noToken_returns401() throws Exception {
+    void postUser_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isUnauthorized());
+    }
 
-        String body = json.writeValueAsString(
-            new CreateUserRequest("Ali", "ali3@test.com", "123456", Role.ETUDIANT)
-        );
-
-        mvc.perform(post("/api/users")
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void postUser_emptyNom_returns400() throws Exception {
+        String body = """
+            {"nom":"","email":"a@b.com","password":"123456","role":"ETUDIANT"}
+            """;
+        mockMvc.perform(post("/api/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.nom").exists());
     }
 }

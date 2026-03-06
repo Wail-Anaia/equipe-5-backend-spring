@@ -1,16 +1,20 @@
 package ma.jobintech.projetfilrouge.user.repository;
 
-import java.util.Optional;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import ma.jobintech.projetfilrouge.user.entity.User;
 
+import java.util.Optional;
+
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    boolean existsByEmail(String email); // CA-2 : unicité email
+    Optional<User> findByEmail(String email);
 
-    Optional<User> findByEmail(String email); // usage Auth A1
+    boolean existsByEmail(String email);
+
+    Page<User> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }
