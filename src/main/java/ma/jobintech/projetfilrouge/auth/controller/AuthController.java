@@ -1,10 +1,11 @@
 package ma.jobintech.projetfilrouge.auth.controller;
 
-import ma.jobintech.projetfilrouge.user.dto.request.LoginRequest;
-import ma.jobintech.projetfilrouge.user.dto.response.AuthResponse;
-import ma.jobintech.projetfilrouge.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import ma.jobintech.projetfilrouge.auth.dto.AuthResponse;
+import ma.jobintech.projetfilrouge.auth.dto.LoginRequest;
+import ma.jobintech.projetfilrouge.auth.service.AuthService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

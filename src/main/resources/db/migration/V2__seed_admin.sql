@@ -1,11 +1,12 @@
--- Administrateur initial (password: Admin@1234)
--- Hash BCrypt généré avec strength=12
+-- ══════════════════════════════════════════════════════
+-- V2 — Données initiales : compte admin par défaut
+-- Password : Admin@1234  (BCrypt strength=12)
+-- ══════════════════════════════════════════════════════
 INSERT INTO users (nom, email, password, role, actif)
 VALUES (
-    'Super Admin',
+    'Wail Anaia',
     'admin@university.ma',
-    '$2a$12$mCCHi2rGilU4xisYFu1IhuLZhOHCqOpzqp1C8ErYKhTpKbjqXhL/m',
+    '$2a$12$Huabfcu1AdMoId8IrVrNQuMa65dp3vCEaVOGf.lW01CU9DMpLEctG',
     'ADMIN',
     TRUE
-)
-ON CONFLICT (email) DO NOTHING;
+);

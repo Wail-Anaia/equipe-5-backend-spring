@@ -29,5 +29,5 @@ app:
 
 logging:
   level:
-    com.university: DEBUG
+    ma.jobintech: DEBUG
     org.springframework.security: INFO

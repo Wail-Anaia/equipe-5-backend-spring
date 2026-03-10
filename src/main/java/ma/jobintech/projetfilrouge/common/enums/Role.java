@@ -1,4 +1,4 @@
-package ma.jobintech.projetfilrouge.user.entity;
+package ma.jobintech.projetfilrouge.common.enums;
 
 public enum Role {
     ADMIN,

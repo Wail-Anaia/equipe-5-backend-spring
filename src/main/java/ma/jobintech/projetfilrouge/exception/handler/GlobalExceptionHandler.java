@@ -1,6 +1,8 @@
 package ma.jobintech.projetfilrouge.exception.handler;
 
 import lombok.extern.slf4j.Slf4j;
+import ma.jobintech.projetfilrouge.exception.types.BusinessException;
+import ma.jobintech.projetfilrouge.exception.types.UserNotFoundException;
 import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.*;
@@ -10,72 +12,64 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
-import ma.jobintech.projetfilrouge.exception.BusinessException;
-import ma.jobintech.projetfilrouge.exception.UserNotFoundException;
-
-@RestControllerAdvice
 @Slf4j
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Validation Bean Validation (@Valid)
+    // ── 400 — Validation ──────────────────────────────
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, Object> handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String field = ((FieldError) error).getField();
-            fieldErrors.put(field, error.getDefaultMessage());
-        });
-        return buildError(HttpStatus.BAD_REQUEST, "Erreur de validation", fieldErrors);
+    public ResponseEntity<Map<String, Object>> handleValidation(
+            MethodArgumentNotValidException ex) {
+        Map<String, String> details = ex.getBindingResult().getFieldErrors().stream()
+            .collect(Collectors.toMap(
+                FieldError::getField,
+                fe -> fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Invalide",
+                (a, b) -> a
+            ));
+        return error(HttpStatus.BAD_REQUEST, "Erreur de validation", details);
     }
 
-    // Erreurs métier
+    // ── 400 — Business ────────────────────────────────
     @ExceptionHandler(BusinessException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, Object> handleBusinessException(BusinessException ex) {
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
+    public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException ex) {
+        return error(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
     }
 
-    // Utilisateur introuvable
-    @ExceptionHandler(UserNotFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, Object> handleUserNotFound(UserNotFoundException ex) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+    // ── 401 — Auth ────────────────────────────────────
+    @ExceptionHandler({ BadCredentialsException.class, DisabledException.class })
+    public ResponseEntity<Map<String, Object>> handleAuth(RuntimeException ex) {
+        return error(HttpStatus.UNAUTHORIZED, ex.getMessage(), null);
     }
 
-    // Mauvais credentials / compte désactivé
-    @ExceptionHandler({BadCredentialsException.class, DisabledException.class})
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public Map<String, Object> handleAuthException(Exception ex) {
-        String message = ex instanceof DisabledException
-            ? "Compte désactivé. Contactez l'administrateur."
-            : "Email ou mot de passe incorrect.";
-        return buildError(HttpStatus.UNAUTHORIZED, message, null);
-    }
-
-    // Accès interdit
+    // ── 403 — Access denied ───────────────────────────
     @ExceptionHandler(AccessDeniedException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
-    public Map<String, Object> handleAccessDenied(AccessDeniedException ex) {
-        return buildError(HttpStatus.FORBIDDEN, "Accès refusé. Droits insuffisants.", null);
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return error(HttpStatus.FORBIDDEN, "Accès refusé", null);
     }
 
-    // Fallback
+    // ── 404 — Not found ───────────────────────────────
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(UserNotFoundException ex) {
+        return error(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+    }
+
+    // ── 500 — Fallback ────────────────────────────────
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Map<String, Object> handleGeneric(Exception ex) {
-        log.error("Erreur inattendue", ex);
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR,
-            "Une erreur interne est survenue.", null);
+    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Une erreur interne est survenue", null);
     }
 
-    private Map<String, Object> buildError(HttpStatus status, String message, Object details) {
+    // ── Builder ───────────────────────────────────────
+    private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message,
+                                                       Map<String, String> details) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", message);
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status",    status.value());
+        body.put("error",     message);
         if (details != null) body.put("details", details);
-        return body;
+        return ResponseEntity.status(status).body(body);
     }
 }

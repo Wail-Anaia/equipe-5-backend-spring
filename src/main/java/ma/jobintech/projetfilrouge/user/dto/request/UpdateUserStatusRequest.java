@@ -1,10 +1,9 @@
 package ma.jobintech.projetfilrouge.user.dto.request;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
-@Getter @Setter
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class UpdateUserStatusRequest {
 
     @NotNull(message = "Le statut actif est obligatoire")

@@ -1,11 +1,10 @@
 package ma.jobintech.projetfilrouge.user.dto.request;
 
 import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
-import ma.jobintech.projetfilrouge.user.entity.Role;
+import lombok.*;
+import ma.jobintech.projetfilrouge.common.enums.Role;
 
-@Getter @Setter
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CreateUserRequest {
 
     @NotBlank(message = "Le nom est obligatoire")
@@ -13,11 +12,11 @@ public class CreateUserRequest {
     private String nom;
 
     @NotBlank(message = "L'email est obligatoire")
-    @Email(message = "Format email invalide")
+    @Email(message = "Format d'email invalide")
     private String email;
 
     @NotBlank(message = "Le mot de passe est obligatoire")
-    @Size(min = 6, message = "Le mot de passe doit contenir au minimum 6 caractères")
+    @Size(min = 6, message = "Le mot de passe doit contenir au moins 6 caractères")
     private String password;
 
     @NotNull(message = "Le rôle est obligatoire")

@@ -1,17 +1,13 @@
-package ma.jobintech.projetfilrouge.user.entity;
+package ma.jobintech.projetfilrouge.audit;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "audit_logs")
-@Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AuditLog {
 
     @Id
@@ -21,18 +17,19 @@ public class AuditLog {
     @Column(nullable = false, length = 50)
     private String action;
 
-    // ID de l'entité concernée (ex: userId créé)
     @Column(name = "user_id")
     private Long userId;
 
-    // ID de l'utilisateur qui a effectué l'action
     @Column(name = "performed_by")
     private Long performedBy;
 
     @Column(columnDefinition = "TEXT")
     private String details;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    @Builder.Default
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }

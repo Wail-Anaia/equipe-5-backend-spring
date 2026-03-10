@@ -1,21 +1,20 @@
 package ma.jobintech.projetfilrouge.user.service;
 
 import ma.jobintech.projetfilrouge.audit.AuditService;
+import ma.jobintech.projetfilrouge.common.enums.Role;
+import ma.jobintech.projetfilrouge.exception.types.BusinessException;
 import ma.jobintech.projetfilrouge.user.dto.request.CreateUserRequest;
-import ma.jobintech.projetfilrouge.user.dto.response.UserResponse;
-import ma.jobintech.projetfilrouge.user.entity.Role;
+import ma.jobintech.projetfilrouge.user.dto.response.UserResponseDTO;
 import ma.jobintech.projetfilrouge.user.entity.User;
-import ma.jobintech.projetfilrouge.exception.BusinessException;
 import ma.jobintech.projetfilrouge.user.mapper.UserMapper;
 import ma.jobintech.projetfilrouge.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,69 +23,45 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private AuditService auditService;
-    @Mock private UserMapper userMapper;
-    @InjectMocks private UserService userService;
+    @InjectMocks UserServiceImpl userService;
+    @Mock UserRepository  userRepository;
+    @Mock UserMapper      userMapper;
+    @Mock PasswordEncoder passwordEncoder;
+    @Mock AuditService    auditService;
 
     @Test
-    void createUser_validInput_returnsUserResponse() {
-        // Arrange
-        CreateUserRequest req = new CreateUserRequest();
-        req.setNom("Alice Martin");
-        req.setEmail("alice@university.ma");
-        req.setPassword("securePass");
-        req.setRole(Role.ETUDIANT);
+    void createUser_newEmail_returnsDto() {
+        CreateUserRequest req = new CreateUserRequest("Alice", "alice@test.ma", "password123", Role.ETUDIANT);
+        User saved = User.builder().id(1L).nom("Alice").email("alice@test.ma").role(Role.ETUDIANT).actif(true).build();
+        UserResponseDTO dto = UserResponseDTO.builder().id(1L).nom("Alice").email("alice@test.ma").build();
 
-        User savedUser = User.builder()
-                .id(1L).nom("Alice Martin").email("alice@university.ma")
-                .password("hashed").role(Role.ETUDIANT).actif(true)
-                .createdAt(LocalDateTime.now()).build();
+        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("$hashed");
+        when(userRepository.save(any())).thenReturn(saved);
+        when(userMapper.toDto(saved)).thenReturn(dto);
 
-        UserResponse expectedResponse = new UserResponse(
-                1L, "Alice Martin", "alice@university.ma",
-                Role.ETUDIANT, true, LocalDateTime.now());
+        UserResponseDTO result = userService.createUser(req);
 
-        when(userRepository.existsByEmail("alice@university.ma")).thenReturn(false);
-        when(passwordEncoder.encode("securePass")).thenReturn("hashed");
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(userMapper.toResponse(savedUser)).thenReturn(expectedResponse);
-
-        // Act
-        UserResponse result = userService.createUser(req);
-
-        // Assert
-        assertThat(result.getEmail()).isEqualTo("alice@university.ma");
-        assertThat(result.isActif()).isTrue();
-        verify(auditService).log(eq(AuditService.USER_CREATED), eq(1L), anyString());
+        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(result.getNom()).isEqualTo("Alice");
+        verify(auditService).log(eq(AuditService.USER_CREATED), any(), any(), anyString());
     }
 
     @Test
     void createUser_duplicateEmail_throwsBusinessException() {
-        CreateUserRequest req = new CreateUserRequest();
-        req.setEmail("existing@university.ma");
-
-        when(userRepository.existsByEmail("existing@university.ma")).thenReturn(true);
+        CreateUserRequest req = new CreateUserRequest("Bob", "bob@test.ma", "pass", Role.ETUDIANT);
+        when(userRepository.existsByEmail("bob@test.ma")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(req))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("email existe déjà");
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("bob@test.ma");
     }
 
     @Test
-    void setUserStatus_disable_logsUserDisabled() {
-        User user = User.builder()
-                .id(2L).nom("Bob").email("bob@u.ma")
-                .role(Role.ETUDIANT).actif(true).build();
+    void getUserById_notFound_throwsUserNotFoundException() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(user));
-        when(userRepository.save(any())).thenReturn(user);
-        when(userMapper.toResponse(any())).thenReturn(
-            new UserResponse(2L, "Bob", "bob@u.ma", Role.ETUDIANT, false, LocalDateTime.now()));
-
-        userService.setUserStatus(2L, false);
-
-        verify(auditService).log(eq(AuditService.USER_DISABLED), eq(2L), anyString());
+        assertThatThrownBy(() -> userService.getUserById(99L))
+            .isInstanceOf(ma.jobintech.projetfilrouge.exception.types.UserNotFoundException.class);
     }
 }

@@ -1,21 +1,20 @@
 package ma.jobintech.projetfilrouge.security.jwt;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import ma.jobintech.projetfilrouge.security.jwt.JwtProperties;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class JwtService {
 
     private final JwtProperties jwtProperties;
@@ -40,8 +39,11 @@ public class JwtService {
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        return claimsResolver.apply(extractAllClaims(token));
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 
     private Claims extractAllClaims(String token) {
@@ -52,19 +54,9 @@ public class JwtService {
                 .getPayload();
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
-    }
-
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(
-            java.util.Base64.getEncoder()
-                .encodeToString(jwtProperties.getSecret().getBytes())
+        return Keys.hmacShaKeyFor(
+            jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8)
         );
-        return Keys.hmacShaKeyFor(keyBytes);
-    }
-
-    public long getExpirationMs() {
-        return jwtProperties.getExpirationMs();
     }
 }

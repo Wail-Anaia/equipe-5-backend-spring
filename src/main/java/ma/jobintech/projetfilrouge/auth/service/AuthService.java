@@ -1,72 +1,65 @@
 package ma.jobintech.projetfilrouge.auth.service;
 
-import ma.jobintech.projetfilrouge.audit.AuditService;
-import ma.jobintech.projetfilrouge.user.dto.request.LoginRequest;
-import ma.jobintech.projetfilrouge.user.dto.response.AuthResponse;
-import ma.jobintech.projetfilrouge.user.entity.User;
-import ma.jobintech.projetfilrouge.exception.UserNotFoundException;
-import ma.jobintech.projetfilrouge.user.repository.UserRepository;
-import ma.jobintech.projetfilrouge.security.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import ma.jobintech.projetfilrouge.audit.AuditService;
+import ma.jobintech.projetfilrouge.auth.dto.AuthResponse;
+import ma.jobintech.projetfilrouge.auth.dto.LoginRequest;
+import ma.jobintech.projetfilrouge.security.jwt.JwtService;
+import ma.jobintech.projetfilrouge.user.entity.User;
+import ma.jobintech.projetfilrouge.user.repository.UserRepository;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository;
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
-    private final AuditService auditService;
+    private final UserDetailsService    userDetailsService;
+    private final JwtService            jwtService;
+    private final UserRepository        userRepository;
+    private final AuditService          auditService;
 
     public AuthResponse login(LoginRequest request) {
         try {
-            // Délègue à Spring Security (vérifie password + actif via UserDetails)
             authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                    request.getEmail(),
-                    request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
-        } catch (BadCredentialsException e) {
-            auditService.log(AuditService.LOGIN_FAILED, null,
-                "Tentative échouée pour : " + request.getEmail());
-            throw e;
-        } catch (DisabledException e) {
-            auditService.log(AuditService.LOGIN_FAILED, null,
+        } catch (DisabledException ex) {
+            auditService.log(AuditService.LOGIN_FAILED, null, null,
                 "Compte désactivé : " + request.getEmail());
-            throw e;
+            throw new DisabledException("Ce compte est désactivé");
+        } catch (AuthenticationException ex) {
+            auditService.log(AuditService.LOGIN_FAILED, null, null,
+                "Tentative échouée pour : " + request.getEmail());
+            throw new BadCredentialsException("Email ou mot de passe incorrect");
         }
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("Utilisateur introuvable"));
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-
-        Map<String, Object> claims = Map.of(
+        String token = jwtService.generateToken(userDetails, Map.of(
             "role", user.getRole().name(),
-            "nom", user.getNom()
-        );
+            "nom",  user.getNom()
+        ));
 
-        String token = jwtService.generateToken(userDetails, claims);
-
-        auditService.log(AuditService.LOGIN_SUCCESS, user.getId(),
+        auditService.log(AuditService.LOGIN_SUCCESS, user.getId(), user.getId(),
             "Login réussi : " + user.getEmail());
 
-        return new AuthResponse(
-            token,
-            user.getEmail(),
-            user.getNom(),
-            user.getRole(),
-            jwtService.getExpirationMs()
-        );
+        log.info("Login réussi — email={}", user.getEmail());
+
+        return AuthResponse.builder()
+                .token(token)
+                .email(user.getEmail())
+                .nom(user.getNom())
+                .role(user.getRole())
+                .build();
     }
 }

@@ -2,17 +2,14 @@ package ma.jobintech.projetfilrouge.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ma.jobintech.projetfilrouge.common.enums.Role;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class User {
 
     @Id
@@ -22,23 +19,23 @@ public class User {
     @Column(nullable = false, length = 100)
     private String nom;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(unique = true, nullable = false, length = 150)
     private String email;
 
     @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "user_role")
+    @Column(nullable = false)
     private Role role;
 
-    @Column(nullable = false)
     @Builder.Default
-    private boolean actif = true;
+    @Column(nullable = false)
+    private Boolean actif = true;
 
-    @CreationTimestamp
+    @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)

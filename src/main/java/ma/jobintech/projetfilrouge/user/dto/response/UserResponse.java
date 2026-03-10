@@ -2,7 +2,7 @@ package ma.jobintech.projetfilrouge.user.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import ma.jobintech.projetfilrouge.user.entity.Role;
+import ma.jobintech.projetfilrouge.common.enums.Role;
 
 import java.time.LocalDateTime;
 
